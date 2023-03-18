@@ -3,21 +3,37 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
-use App\Models\ProductVariant;
-use App\Models\ProductVariantPrice;
 use App\Models\Variant;
+use Illuminate\Support\Str;
+use App\Models\ProductImage;
 use Illuminate\Http\Request;
+use App\Models\ProductVariant;
+use Illuminate\Support\Facades\DB;
+use App\Models\ProductVariantPrice;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\File;
 
 class ProductController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Http\Response|\Illuminate\View\View
-     */
-    public function index()
+    public $product;
+    public function __construct(
+        Product $product
+    )
     {
-        return view('products.index');
+        $this->product= $product;
+    }
+
+    public function index(Request $request)
+    {
+        $per_pro = 20;
+        $product = $this->product->getProductList($request,$per_pro);
+        $variants = Variant::with('variant_child')->get();
+        foreach ($variants as $key => $variant) {
+            $variant->child = ProductVariant::where('variant_id',$variant->id)->get();
+        }
+        // dd($variants);
+
+        return view('products.index',compact('variants'))->withData($product);
     }
 
     /**
@@ -39,6 +55,53 @@ class ProductController extends Controller
      */
     public function store(Request $request)
     {
+
+        DB::beginTransaction();
+        try {
+            $path = 'assets/uploads/products/';
+            $product                   = new Product();
+            $product->title            = $request->title;
+            $product->sku             = Str::lower(Str::slug($request->title));
+            $product->description      = $request->description;
+            $product->created_at       = date('Y-m-d H:i:s');
+            $product->save();
+
+
+            if (!is_null($request->file('product_image')))
+            {
+                $count = count($request->file('product_image'));
+                for ($i = 0;$i < $count;$i++)
+                {
+                    if (!empty($request->file('product_image') [$i]))
+                    {
+                        if (!File::exists($path)) {
+                            File::makeDirectory($path, 0755, true);
+                        }
+                        $image = $request->file('product_image') [$i];
+                        $extension = $image->getClientOriginalExtension();
+                        $base_name = preg_replace('/\..+$/', '', $image->getClientOriginalName());
+                        $base_name = explode(' ', $base_name);
+                        $base_name = implode('-', $base_name);
+                        $feature_image = $base_name . "-" . uniqid() . '.'.$extension;
+                        $image->move($path, $feature_image);
+                        $image_name = $path . '/' . $feature_image;
+                        $pro_allery = new ProductImage();
+                        $pro_allery->product_id  = $product->id;
+                        $pro_allery->file_path = $image_name;
+                        $pro_allery->thumbnail = 1;
+                        $pro_allery->created_at =date('Y-m-d H:i:s');
+                        $pro_allery->save();
+                    }
+                }
+            }
+
+        } catch (\Exception $e) {
+            dd($e->getMessage());
+            DB::rollback();
+            return redirect()->route('product.index');
+        }
+        DB::commit();
+        return redirect()->route('product.index');
 
     }
 

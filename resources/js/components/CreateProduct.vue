@@ -100,6 +100,7 @@
 import vue2Dropzone from 'vue2-dropzone'
 import 'vue2-dropzone/dist/vue2Dropzone.min.css'
 import InputTag from 'vue-input-tag'
+import { dodgerblue } from 'color-name'
 
 export default {
     components: {
@@ -137,9 +138,10 @@ export default {
         // it will push a new object into product variant
         newVariant() {
             let all_variants = this.variants.map(el => el.id)
+            // dodgerblue(all_variants);
             let selected_variants = this.product_variant.map(el => el.option);
             let available_variants = all_variants.filter(entry1 => !selected_variants.some(entry2 => entry1 == entry2))
-            // console.log(available_variants)
+            console.log(available_variants)
 
             this.product_variant.push({
                 option: available_variants[0],

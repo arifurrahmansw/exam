@@ -10,4 +10,9 @@ class Variant extends Model
         'title', 'description'
     ];
 
+    public function variant_child()
+    {
+        return $this->hasMany('App\Models\ProductVariant', 'id', 'variant_id');
+    }
+
 }
